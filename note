@@ -1,0 +1,69 @@
+import QtQuick
+import Quickshell.Services.SystemTray
+import "./"
+
+Item {
+    id: tray
+    required property Colors c
+    implicitHeight: 24
+    implicitWidth: toggleBox.width + (tray.expanded ? trayRow.implicitWidth + 8 : 0)
+
+    property bool expanded: false
+
+    Rectangle {
+        id: toggleBox
+        width: 24
+        height: 24
+        anchors.verticalCenter: parent.verticalCenter
+        color: togMa.containsMouse ? c.bg2 : c.bg1
+        border.width: 1
+        border.color: c.bg3
+
+        Text {
+            anchors.centerIn: parent
+            text: tray.expanded ? "\ue019" : "\ue01b"
+            font.family: gwnce.name
+            font.pixelSize: 15
+            color: c.fg3
+        }
+
+        MouseArea {
+            id: togMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: tray.expanded = !tray.expanded
+        }
+    }
+
+    Row {
+        id: trayRow
+        visible: tray.expanded
+        anchors { left: toggleBox.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
+        spacing: 4
+
+        Repeater {
+            model: SystemTray.items
+            delegate: Item {
+                required property SystemTrayItem modelData
+                width: 18; height: 18
+
+                // Debug
+                Image {
+                    anchors.fill: parent
+                    source: modelData.icon
+                    fillMode: Image.PreserveAspectFit
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => mouse.button === Qt.LeftButton
+                        ? modelData.activate()
+                        : modelData.secondaryActivate()
+                }
+            }
+        }
+    }
+}
