@@ -89,6 +89,8 @@ QtObject {
         switchProc.running = true
     }
 
+
+
     property var switchProc: Process {
         property string cmd: ""
         command: ["sh", "-c", cmd]
@@ -125,25 +127,41 @@ QtObject {
         onTriggered: refresh()
     }
 
-    property var _nmcliMonitor: Process {
-        command: ["nmcli", "monitor"]
-        running: true
+    property bool autoSwitch: true   // mets à false si tu veux désactiver l'auto-switch
 
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: line => {
-                if (!line.trim() || root.switching) return
-                root.refresh()
-                if (line.includes("wifi") || line.includes("wireless"))
-                    root.wifiListProc.running = true
+        property var _nmcliMonitor: Process {
+            command: ["nmcli", "monitor"]
+            running: true
+
+            stdout: SplitParser {
+                splitMarker: "\n"
+                onRead: line => {
+                    if (!line.trim() || root.switching) return
+                    root.refresh()
+                    if (line.includes("wifi") || line.includes("wireless"))
+                        root.wifiListProc.running = true
+
+                    if (!root.autoSwitch || !root.ethIface || !root.wifiIface) return
+
+                    const isEthLine = line.indexOf(root.ethIface) === 0
+                    if (!isEthLine) return
+
+                    const justConnected    = /:\s*connected\s*$/.test(line)
+                    const justDisconnected = /disconnected/.test(line)
+
+                    if (justConnected && root.useWifi) {
+                        root.switchToEth()
+                    } else if (justDisconnected && !root.useWifi) {
+                        root.switchToWifi()
+                    }
+                }
+            }
+
+            onRunningChanged: {
+                if (!running)
+                    _monitorRestartTimer.restart()
             }
         }
-
-        onRunningChanged: {
-            if (!running)
-                _monitorRestartTimer.restart()
-        }
-    }
 
     property var _monitorRestartTimer: Timer {
         interval: 3000
